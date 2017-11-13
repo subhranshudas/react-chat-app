@@ -1,5 +1,5 @@
 // app-client.js
-import { forEach } from 'lodash';
+import { map } from 'lodash';
 import React, { Component } from 'react';
 import { render } from 'react-dom';
 import io from 'socket.io-client';
@@ -39,7 +39,7 @@ class App extends Component {
       // update the state
       this.setState((prevState) => {
         return {
-          messages: forEach(prevState.messages, msg => {
+          messages: map(prevState.messages, msg => {
             return Object.assign({}, msg, { offline: msg.id === userId });
           })
         };
