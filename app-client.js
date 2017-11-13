@@ -1,180 +1,146 @@
 // app-client.js
-import React, { Component } from 'react'
-import { render } from 'react-dom'
-import Cosmic from 'cosmicjs'
-import io from 'socket.io-client'
-import config from './config'
-import uuid from 'node-uuid'
-import S from 'shorti'
-import _ from 'lodash'
-import { Input } from 'react-bootstrap'
+import React, { Component } from 'react';
+import { render } from 'react-dom';
+import io from 'socket.io-client';
+import uuid from 'node-uuid';
+import {
+  PageHeader, Grid, Col, Panel, Input,
+  Label, ListGroup, ListGroupItem, Navbar
+} from 'react-bootstrap';
+
+
+const socket = io('http://localhost:3000/');
 
 class App extends Component {
-
   constructor() {
     super()
     this.state = {
-      data: {
-        messages: []
-      }
+      messages: []
     }
   }
 
   componentDidMount() {
-    let data = this.state.data
-    setTimeout(() => {
-      this.refs.author.refs.input.focus()
-    }, 100)
-    const socket = io()
-    Cosmic.getObjects(config, (err, res) => {
-      const messages = res.objects.type.messages
-      if (messages) {
-        messages.reverse()
-        this.setState({
-          data: {
-            author: data.author,
-            messages
-          }
-        })
+    socket.on('chat-msg', message => {
+      console.log('listener client: ', message);
+      if (message.user !== this.state.author) {
+        // update state here based on server communication
+        this.setState((prevState) => {
+          return {
+            messages: [...prevState.messages, message]
+          };
+        });
       }
-    })
-    // Listen for messages coming in
-    socket.on('chat message', message => {
-      data = this.state.data
-      const messages = this.state.data.messages
-      if (data.author !== message.metafield.author.value) {
-        messages.push(message)
-        this.setState({
-          data: {
-            author: data.author,
-            messages
-          }
-        })
-      }
-    })
+    });
+
+    socket.on('user-offline', () => {
+      // update the state
+      // this.setState((prevState) => {
+      //   return {
+      //     messages: [...prevState.messages, message]
+      //   };
+      // });
+    });
+
+    this.refs.author.refs.input.focus();
   }
 
   componentDidUpdate() {
-    if (this.refs.message)
-      this.refs.message.refs.input.focus()
-    if (this.refs.messages_scroll_area)
-      this.refs.messages_scroll_area.scrollTop = this.refs.messages_scroll_area.scrollHeight
+    console.log('did update');
+    console.log('what is state now: ', this.state.messages);
+    this.refs.chatbox.refs.input.focus();
+    this.refs.chatContainer.scrollTop = this.refs.chatContainer.scrollHeight
   }
 
-  setAuthor() {
-    const author = this.refs.author.refs.input.value.trim()
-    if (!author)
-      return
-    this.refs.author.refs.input.value = ''
-    const messages = this.state.data.messages
-    this.setState({
-      data: {
-        author,
-        messages
-      }
-    })
+  createMessage(entry) {
+    // Send message out to server
+    console.log('what is entry?: ', entry);
+    socket.emit('chat-msg', entry);
+
+    // client state update
+    this.setState((prevState) => {
+      return {
+        messages: [...prevState.messages, entry]
+      };
+    });
   }
 
-  createMessage() {
-    const data = this.state.data
-    const messages = data.messages
-    const socket = io()
-    const message_text = this.refs.message.refs.input.value.trim()
-    if (!message_text)
-      return
-    const message_emit = {
-      message: message_text,
-      author: data.author
+  insertChat = (ev) => {
+    const message = ev.target.value;
+    if (ev.which === 13 || ev.keyCode === 13) {
+      this.createMessage({
+        user: this.state.author,
+        message
+      });
+      this.refs.chatbox.refs.input.value = '';
     }
-    // Send message out
-    socket.emit('chat message', message_emit)
-    // Render to browser
-    const message_browser = {
-      _id: uuid.v1(),
-      metafield: {
-        author: {
-          value: data.author
-        },
-        message: {
-          value: message_text
-        }
-      }
-    }
-    messages.push(message_browser)
-    this.setState({
-      data: {
-        author: data.author,
-        messages
-      }
-    })
-    this.refs.message.refs.input.value = ''
   }
 
-  handleSubmit(e) {
-    e.preventDefault()
-    const data = this.state.data
-    if (data.author)
-      this.createMessage()
-    else
-      this.setAuthor()
+
+  createUser = (ev) => {
+    const author = ev.target.value;
+    if (ev.which === 13 || ev.keyCode === 13) {
+      this.setState(() => {
+        return {
+          author
+        };
+      });
+      this.refs.author.refs.input.value = '';
+    }
+  }
+
+  registerUser() {
+    return (
+      <div>
+        <Col md={4}>
+          <Panel header="Create a User">
+            <Input type="text" onKeyDown={this.createUser} ref="author"/>
+          </Panel>
+        </Col>
+      </div>
+    );
+  }
+
+  renderChats() {
+    console.log('render');
+
+    const offline = true ? 'danger' : 'success';
+    return (
+      <div>
+        <Navbar fixedBottom>
+            <h4>Type your Message <i>{this.state.author}</i></h4>
+            <Input type="text" onKeyDown={this.insertChat} ref="chatbox"/>
+        </Navbar>
+
+        <Col md={8} className="chat-container" ref="chatContainer">
+          <ListGroup>
+            {
+              this.state.messages.map(item => {
+                return (
+                  <ListGroupItem key={uuid.v1()}>
+                    <Label bsStyle={offline}>{item.user}</Label>
+                    <span className="user-comment">{item.message}</span>
+                  </ListGroupItem>
+                );
+              })
+            }
+          </ListGroup>
+        </Col>
+      </div>
+    );
   }
 
   render() {
-    const data = this.state.data
-    let form_input
-    if (!data.author) {
-      form_input = (
-        <div>
-          Hi, what is your name?<br />
-          <Input type="text" ref="author" />
-        </div>
-      )
-    } else {
-      form_input = (
-        <div>
-          Hello { data.author }, type a message:<br />
-          <Input type="text" ref="message" />
-        </div>
-      )
-    }
-    const messages = data.messages
-    let messages_list
-    if (messages) {
-      // order by created
-      const sorted_messages = _.sortBy(messages, message => {
-        return message.created
-      })
-      messages_list = sorted_messages.map(message_object => {
-        if (message_object) {
-          return (
-            <li style={ { listStyle: 'none', ...S('mb-5') } } key={ message_object._id }>
-              <b>{ message_object.metafield.author.value }</b><br/>
-              { message_object.metafield.message.value }
-            </li>
-          )
-        }
-      })
-    }
-    const scroll_area_style = {
-      ...S('h-' + (window.innerHeight - 140)),
-      overflowY: 'scroll'
-    }
+    const pageContent = this.state.author ? this.renderChats() : this.registerUser();
     return (
       <div>
-        <div style={ S('pl-15') }>
-          <h2>React Chat App</h2>
-          <div ref="messages_scroll_area" style={ scroll_area_style }>
-            <ul style={ S('p-0') }>{ messages_list }</ul>
-          </div>
-        </div>
-        <div style={ S('absolute b-0 w-100p pl-15 pr-15') }>
-          <form onSubmit={ this.handleSubmit.bind(this) }>
-            { form_input }
-          </form>
-        </div>
+        <PageHeader>Flack</PageHeader>
+        <Grid>
+          {pageContent}
+        </Grid>
       </div>
     )
   }
 }
+
 const app = document.getElementById('app')
 render(<App />, app)

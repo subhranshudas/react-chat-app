@@ -4,6 +4,7 @@
   "description": "",
   "main": "app-client.js",
   "dependencies": {
+    "axios": "^0.17.1",
     "babel": "^6.3.26",
     "babel-core": "^6.4.5",
     "babel-loader": "^6.2.1",
@@ -11,7 +12,7 @@
     "babel-preset-react": "^6.3.13",
     "babel-preset-stage-2": "^6.3.13",
     "babel-register": "^6.4.3",
-    "cosmicjs": "^2.0.0",
+    "classnames": "^2.2.5",
     "express": "^4.13.3",
     "lodash": "^4.0.0",
     "node-uuid": "^1.4.7",
@@ -27,7 +28,7 @@
     "start": "npm run production",
     "development": "npm run webpack-dev-server",
     "production": "webpack -p && node app-entry.js",
-    "server": "nodemon app-entry.js",
+    "server": "DEBUG=socket.io* nodemon app-entry.js",
     "webpack-dev-server": "NODE_ENV=development webpack-dev-server --hot --inline --devtool inline-source-map --history-api-fallback"
   },
   "author": "",
