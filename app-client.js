@@ -1,4 +1,5 @@
 // app-client.js
+import { forEach } from 'lodash';
 import React, { Component } from 'react';
 import { render } from 'react-dom';
 import io from 'socket.io-client';
@@ -26,19 +27,23 @@ class App extends Component {
         // update state here based on server communication
         this.setState((prevState) => {
           return {
-            messages: [...prevState.messages, message]
+            messages: [...prevState.messages, message],
+            offline: false
           };
         });
       }
     });
 
-    socket.on('user-offline', () => {
+    socket.on('user-offline', (userId) => {
+      console.log('user disconnected: ', userId);
       // update the state
-      // this.setState((prevState) => {
-      //   return {
-      //     messages: [...prevState.messages, message]
-      //   };
-      // });
+      this.setState((prevState) => {
+        return {
+          messages: forEach(prevState.messages, msg => {
+            return Object.assign({}, msg, { offline: msg.id === userId });
+          })
+        };
+      });
     });
 
     this.refs.author.refs.input.focus();
@@ -47,8 +52,10 @@ class App extends Component {
   componentDidUpdate() {
     console.log('did update');
     console.log('what is state now: ', this.state.messages);
-    this.refs.chatbox.refs.input.focus();
-    this.refs.chatContainer.scrollTop = this.refs.chatContainer.scrollHeight
+    if (this.refs.chatbox) {
+      this.refs.chatbox.refs.input.focus();
+      this.refs.chatContainer.scrollTop = this.refs.chatContainer.scrollHeight
+    }
   }
 
   createMessage(entry) {
@@ -59,7 +66,8 @@ class App extends Component {
     // client state update
     this.setState((prevState) => {
       return {
-        messages: [...prevState.messages, entry]
+        messages: [...prevState.messages, entry],
+        offline: false
       };
     });
   }
@@ -102,8 +110,6 @@ class App extends Component {
 
   renderChats() {
     console.log('render');
-
-    const offline = true ? 'danger' : 'success';
     return (
       <div>
         <Navbar fixedBottom>
@@ -117,7 +123,7 @@ class App extends Component {
               this.state.messages.map(item => {
                 return (
                   <ListGroupItem key={uuid.v1()}>
-                    <Label bsStyle={offline}>{item.user}</Label>
+                    <Label bsStyle={item.offline ? 'danger' : 'success'}>{item.user}</Label>
                     <span className="user-comment">{item.message}</span>
                   </ListGroupItem>
                 );
