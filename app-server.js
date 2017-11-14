@@ -18,6 +18,16 @@ io.on('connection', socket => {
     io.emit('chat-msg', Object.assign({}, params, {id: socket.id}));
   });
 
+  socket.on('user-typing', (user) => {
+    console.log('who is typing: ', user);
+    io.emit('user-typing', user);
+  });
+
+  socket.on('user-not-typing', (user) => {
+    console.log('who stopped typing: ', user);
+    io.emit('user-not-typing', user);
+  });
+
   socket.on('disconnect', (reason) => {
     console.log('socket is disconnected: ', socket.id);
     io.emit('user-offline', socket.id);

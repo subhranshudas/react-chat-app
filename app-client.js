@@ -1,5 +1,5 @@
 // app-client.js
-import { map } from 'lodash';
+import { map, uniq, filter } from 'lodash';
 import React, { Component } from 'react';
 import { render } from 'react-dom';
 import io from 'socket.io-client';
@@ -16,7 +16,8 @@ class App extends Component {
   constructor() {
     super()
     this.state = {
-      messages: []
+      messages: [],
+      typingList: []
     }
   }
 
@@ -42,6 +43,30 @@ class App extends Component {
           messages: map(prevState.messages, msg => {
             return Object.assign({}, msg, { offline: msg.id === userId });
           })
+        };
+      });
+    });
+
+    socket.on('user-typing', (user) => {
+      console.log('user typing: ', user);
+      // update the state
+      this.setState((prevState) => {
+        return {
+          typingList: filter(uniq([...prevState.typingList, user]),
+            userInList => userInList !== prevState.author
+          )
+        };
+      });
+    });
+
+    socket.on('user-not-typing', (user) => {
+      console.log('user not typing: ', user);
+      // update the state
+      this.setState((prevState) => {
+        return {
+          typingList: filter(uniq([...prevState.typingList, user]),
+            userInList => userInList !== user
+          )
         };
       });
     });
@@ -72,6 +97,14 @@ class App extends Component {
     });
   }
 
+  userTyping(user) {
+    socket.emit('user-typing', user);
+  }
+
+  userNotTyping(user) {
+    socket.emit('user-not-typing', user);
+  }
+
   insertChat = (ev) => {
     const message = ev.target.value;
     if (ev.which === 13 || ev.keyCode === 13) {
@@ -80,7 +113,12 @@ class App extends Component {
         message
       });
       this.refs.chatbox.refs.input.value = '';
-    }
+    } else
+      this.userTyping(this.state.author);
+
+    window.setTimeout(() => {
+      this.userNotTyping(this.state.author);
+    }, 3000);
   }
 
 
@@ -110,11 +148,13 @@ class App extends Component {
 
   renderChats() {
     console.log('render');
+    const { typingList } = this.state;
     return (
       <div>
         <Navbar fixedBottom>
             <h4>Type your Message <i>{this.state.author}</i></h4>
             <Input type="text" onKeyDown={this.insertChat} ref="chatbox"/>
+            <p>{ typingList.length > 0 ? <i>{ typingList.join(',') } typing...</i> : null }</p>
         </Navbar>
 
         <Col md={8} className="chat-container" ref="chatContainer">
@@ -136,6 +176,7 @@ class App extends Component {
   }
 
   render() {
+    console.log('typing users: ', this.state.typingList);
     const pageContent = this.state.author ? this.renderChats() : this.registerUser();
     return (
       <div>
